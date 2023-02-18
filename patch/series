@@ -165,6 +165,8 @@ cisco-hwmon-pmbus_core-pec-support-check.patch
 # Marvell platform patches for 4.19
 armhf_secondary_boot_online.patch
 #
+# pensando dsc patch
+5.10-pensando-port.diff
 #
 ############################################################
 #
