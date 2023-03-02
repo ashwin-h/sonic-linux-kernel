@@ -166,7 +166,8 @@ cisco-hwmon-pmbus_core-pec-support-check.patch
 armhf_secondary_boot_online.patch
 #
 # pensando dsc patch
-5.10-pensando-port.diff
+5.10-pensando-port.patch
+5.10-pensando-Add-dsc-drivers.patch
 #
 ############################################################
 #
