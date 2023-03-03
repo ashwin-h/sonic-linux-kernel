@@ -255,7 +255,7 @@ index 9ff0f309b..7f32ffd99 100644
  obj-$(CONFIG_PENSANDO_SOC_BSM) += cap_bsm.o
  obj-$(CONFIG_PENSANDO_SOC_PENFW) += penfw_smc.o penfw_sysfs.o penfw_drv.o
  obj-$(CONFIG_PENSANDO_SOC_SBUS) += sbus.o
-+obj-$(CONFIG_PENSANDO_SOC_IONIC) += dsc-drivers/drivers/linux/ 
++obj-$(CONFIG_PENSANDO_SOC_IONIC_BUILD) += dsc-drivers/drivers/linux/
 diff --git a/drivers/soc/pensando/dsc-drivers/README.md b/drivers/soc/pensando/dsc-drivers/README.md
 new file mode 100644
 index 000000000..c9ca9e37c
@@ -320,10 +320,10 @@ index 000000000..c9ca9e37c
 +set in it, you can add them in the make line.
 +
 +For Naples drivers:
-+    make M=`pwd` KCFLAGS="-Werror -Ddrv_ver=\\\"1.15.9.7\\\"" CONFIG_IONIC_MNIC=m CONFIG_MDEV=m CONFIG_MNET_UIO_PDRV_GENIRQ=m modules
++    make M=`pwd` KCFLAGS="-Werror -Ddrv_ver=\\\"1.15.9.7\\\"" CONFIG_PENSANDO_IONIC_MNIC=m CONFIG_PENSANDO_SOC_MDEV=m CONFIG_PENSANDO_SOC_MNET_UIO_PDRV_GENIRQ=m modules
 +
 +For the host driver:
-+    make M=`pwd` KCFLAGS="-Werror -Ddrv_ver=\\\"1.15.9.7\\\"" CONFIG_IONIC=m modules
++    make M=`pwd` KCFLAGS="-Werror -Ddrv_ver=\\\"1.15.9.7\\\"" CONFIG_PENSANDO_SOC_IONIC=m modules
 +
 +As usual, if the Linux headers are elsewhere, add the appropriate -C magic:
 +    make -C <kernel-header-path> M=`pwd` ...
@@ -4179,7 +4179,7 @@ index 000000000..f6fb4aee8
 +
 +static inline void ionic_dbell_ring(u64 __iomem *db_page, int qtype, u64 val)
 +{
-+#if defined(CONFIG_IONIC_MNIC)
++#if defined(CONFIG_PENSANDO_IONIC_MNIC)
 +	wmb();
 +	writeq_relaxed(val, &db_page[qtype]);
 +#else
@@ -4195,10 +4195,10 @@ index 000000000..611c936a8
 +++ b/drivers/soc/pensando/dsc-drivers/drivers/linux/Makefile
 @@ -0,0 +1,119 @@
 +ifneq ($(KERNELRELEASE),)
-+obj-$(CONFIG_IONIC) += eth/ionic/
-+obj-$(CONFIG_IONIC_MNIC) += eth/ionic/
-+obj-$(CONFIG_MDEV) += mdev/
-+obj-$(CONFIG_MNET_UIO_PDRV_GENIRQ) += mnet_uio_pdrv_genirq/
++obj-$(CONFIG_PENSANDO_SOC_IONIC) += eth/ionic/
++obj-$(CONFIG_PENSANDO_IONIC_MNIC) += eth/ionic/
++obj-$(CONFIG_PENSANDO_SOC_MDEV) += mdev/
++obj-$(CONFIG_PENSANDO_SOC_MNET_UIO_PDRV_GENIRQ) += mnet_uio_pdrv_genirq/
 +else
 +
 +IONIC_ETH_SRC = $(CURDIR)/eth/ionic
@@ -4225,14 +4225,14 @@ index 000000000..611c936a8
 +KSRC ?= ${NICDIR}/buildroot/output/${ASIC}/linux-headers
 +KMOD_OUT_DIR ?= ${BLD_OUT_DIR}/drivers_submake
 +KMOD_SRC_DIR ?= ${TOPDIR}/platform/drivers/linux-ionic
-+ETH_KOPT += CONFIG_IONIC_MNIC=m
-+ETH_KOPT += CONFIG_MDEV=m
-+ETH_KOPT += CONFIG_MNET_UIO_PDRV_GENIRQ=m
++ETH_KOPT += CONFIG_PENSANDO_IONIC_MNIC=m
++ETH_KOPT += CONFIG_PENSANDO_SOC_MDEV=m
++ETH_KOPT += CONFIG_PENSANDO_SOC_MNET_UIO_PDRV_GENIRQ=m
 +KOPT += CROSS_COMPILE=aarch64-linux-gnu-
 +KOPT += ARCH=arm64
-+KCFLAGS += -DCONFIG_IONIC_MNIC
-+KCFLAGS += -DCONFIG_MDEV
-+KCFLAGS += -DCONFIG_MNET_UIO_PDRV_GENIRQ
++KCFLAGS += -DCONFIG_PENSANDO_IONIC_MNIC
++KCFLAGS += -DCONFIG_PENSANDO_SOC_MDEV
++KCFLAGS += -DCONFIG_PENSANDO_SOC_MNET_UIO_PDRV_GENIRQ
 +ALL = mnic
 +ALL += mnet_uio_pdrv_genirq
 +ALL += mdev
@@ -4251,11 +4251,11 @@ index 000000000..611c936a8
 +include linux_ver.mk
 +
 +KSRC ?= /lib/modules/$(shell uname -r)/build
-+ETH_KOPT += CONFIG_IONIC=m
-+ETH_KOPT += CONFIG_IONIC_MNIC=_
-+ETH_KOPT += CONFIG_MDEV=_
-+ETH_KOPT += CONFIG_MNET_UIO_PDRV_GENIRQ=_
-+KCFLAGS += -DCONFIG_IONIC
++ETH_KOPT += CONFIG_PENSANDO_SOC_IONIC=m
++ETH_KOPT += CONFIG_PENSANDO_IONIC_MNIC=_
++ETH_KOPT += CONFIG_PENSANDO_SOC_MDEV=_
++ETH_KOPT += CONFIG_PENSANDO_SOC_MNET_UIO_PDRV_GENIRQ=_
++KCFLAGS += -DCONFIG_PENSANDO_SOC_IONIC
 +
 +KCFLAGS = -Werror
 +KCFLAGS += $(EXTRA_CFLAGS)
@@ -4362,8 +4362,8 @@ index 000000000..37c25df91
 +# SPDX-License-Identifier: GPL-2.0
 +# Copyright(c) 2017 - 2019 Pensando Systems, Inc
 +
-+obj-$(CONFIG_IONIC) := ionic.o
-+obj-$(CONFIG_IONIC_MNIC) := ionic_mnic.o
++obj-$(CONFIG_PENSANDO_SOC_IONIC) := ionic.o
++obj-$(CONFIG_PENSANDO_IONIC_MNIC) := ionic_mnic.o
 +
 +ccflags-y := -g -I$(M)/../common
 +
@@ -30269,7 +30269,7 @@ index 000000000..22b423ce4
 --- /dev/null
 +++ b/drivers/soc/pensando/dsc-drivers/drivers/linux/mdev/Makefile
 @@ -0,0 +1,3 @@
-+obj-$(CONFIG_MDEV) := mdev.o
++obj-$(CONFIG_PENSANDO_SOC_MDEV) := mdev.o
 +
 +mdev-y := mdev_drv.o
 diff --git a/drivers/soc/pensando/dsc-drivers/drivers/linux/mdev/mdev_drv.c b/drivers/soc/pensando/dsc-drivers/drivers/linux/mdev/mdev_drv.c
@@ -31007,7 +31007,7 @@ index 000000000..94eaf0d28
 --- /dev/null
 +++ b/drivers/soc/pensando/dsc-drivers/drivers/linux/mnet_uio_pdrv_genirq/Makefile
 @@ -0,0 +1,3 @@
-+obj-$(CONFIG_MNET_UIO_PDRV_GENIRQ) := mnet_uio_pdrv_genirq.o
++obj-$(CONFIG_PENSANDO_SOC_MNET_UIO_PDRV_GENIRQ) := mnet_uio_pdrv_genirq.o
 +
 +mnet_uio_pdrv_genirq-y := mnet_uio_pdrv_genirq_drv.o
 diff --git a/drivers/soc/pensando/dsc-drivers/drivers/linux/mnet_uio_pdrv_genirq/mnet_uio_pdrv_genirq_drv.c b/drivers/soc/pensando/dsc-drivers/drivers/linux/mnet_uio_pdrv_genirq/mnet_uio_pdrv_genirq_drv.c

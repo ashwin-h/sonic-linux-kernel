@@ -168,6 +168,7 @@ armhf_secondary_boot_online.patch
 # pensando dsc patch
 5.10-pensando-port.patch
 5.10-pensando-Add-dsc-drivers.patch
+5.10-pensando-Fix-dsc-driver-compilation.patch
 #
 ############################################################
 #
