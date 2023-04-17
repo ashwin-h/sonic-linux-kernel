@@ -1,0 +1,273 @@
+From 403a4c056cae120700474435ae40729385d8f1e9 Mon Sep 17 00:00:00 2001
+From: Mushtaq Khan <mushkhan@pensando.io>
+Date: Tue, 4 Apr 2023 18:29:03 +0530
+Subject: [PATCH] rtc-elba-cpld-support
+
+---
+ arch/arm64/boot/dts/pensando/Makefile        |   2 +
+ arch/arm64/boot/dts/pensando/lipari-elba.dts |  17 +++
+ arch/arm64/configs/elba_defconfig            |   1 +
+ drivers/mfd/pensando-elbasr.c                |   4 +
+ drivers/rtc/Kconfig                          |   9 ++
+ drivers/rtc/Makefile                         |   1 +
+ drivers/rtc/rtc-elbacpld.c                   | 159 +++++++++++++++++++++++++++
+ 7 files changed, 193 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/pensando/lipari-elba.dts
+ create mode 100644 drivers/rtc/rtc-elbacpld.c
+
+diff --git a/arch/arm64/boot/dts/pensando/Makefile b/arch/arm64/boot/dts/pensando/Makefile
+index a1ade7e..7ea86b9 100644
+--- a/arch/arm64/boot/dts/pensando/Makefile
++++ b/arch/arm64/boot/dts/pensando/Makefile
+@@ -1,6 +1,8 @@
+ # SPDX-License-Identifier: GPL-2.0
+ dtb-$(CONFIG_ARCH_PENSANDO_ELBA_SOC) += elba-asic-psci.dtb
+ 
++dtb-$(CONFIG_ARCH_PENSANDO_ELBA_SOC) += lipari-elba.dtb
++
+ always-y	:= $(dtb-y)
+ subdir-y	:= $(dts-dirs)
+ clean-files	:= *.dtb
+diff --git a/arch/arm64/boot/dts/pensando/lipari-elba.dts b/arch/arm64/boot/dts/pensando/lipari-elba.dts
+new file mode 100644
+index 0000000..5b746fa
+--- /dev/null
++++ b/arch/arm64/boot/dts/pensando/lipari-elba.dts
+@@ -0,0 +1,17 @@
++#include "elba-asic-psci.dts"
++
++/ {
++	model = "LIPARI Elba ASIC Board";
++	compatible = "pensando,elba";
++};
++
++&i2c0 {
++    /delete-node/ rtc@51;
++};
++
++&spi0 {
++    elbartc: elba-cpld-rtc@1 {
++        compatible = "amd,pensando-elbasr-rtc";
++		reg = <1>;
++    };
++};
+diff --git a/arch/arm64/configs/elba_defconfig b/arch/arm64/configs/elba_defconfig
+index cff0633..6877667 100644
+--- a/arch/arm64/configs/elba_defconfig
++++ b/arch/arm64/configs/elba_defconfig
+@@ -298,3 +298,4 @@ CONFIG_SCHED_TRACER=y
+ CONFIG_FTRACE_SYSCALLS=y
+ CONFIG_BLK_DEV_IO_TRACE=y
+ CONFIG_MEMTEST=y
++CONFIG_RTC_DRV_ELBA_CPLD=y
+diff --git a/drivers/mfd/pensando-elbasr.c b/drivers/mfd/pensando-elbasr.c
+index 0305e1a..34fc1d3 100644
+--- a/drivers/mfd/pensando-elbasr.c
++++ b/drivers/mfd/pensando-elbasr.c
+@@ -56,6 +56,10 @@
+ 		.name = "pensando_elbasr_reset",
+ 		.of_compatible = "amd,pensando-elbasr-reset",
+ 	},
++	{
++		.name = "pensando_elbasr_rtc",
++		.of_compatible = "amd,pensando-elbasr-rtc",
++	},
+ };
+ 
+ /* Bit masks for spi_device.mode management.  Note that incorrect
+diff --git a/drivers/rtc/Kconfig b/drivers/rtc/Kconfig
+index 33e4ecd..b230065e 100644
+--- a/drivers/rtc/Kconfig
++++ b/drivers/rtc/Kconfig
+@@ -1954,4 +1954,13 @@ config RTC_DRV_WILCO_EC
+ 	  This can also be built as a module. If so, the module will
+ 	  be named "rtc_wilco_ec".
+ 
++config RTC_DRV_ELBA_CPLD
++    tristate "Pensando Elba System Resource RTC controller"
++    depends on MFD_PENSANDO_ELBASR || COMPILE_TEST
++    help
++      This option enables support for RTC functions on the
++      Pensando Elba System Resource Chip.  RTC is accessed
++      over SPI to the system resource chip device registers
++      using CS0.
++
+ endif # RTC_CLASS
+diff --git a/drivers/rtc/Makefile b/drivers/rtc/Makefile
+index bfb5746..8c18dee 100644
+--- a/drivers/rtc/Makefile
++++ b/drivers/rtc/Makefile
+@@ -182,4 +182,5 @@ obj-$(CONFIG_RTC_DRV_WM831X)	+= rtc-wm831x.o
+ obj-$(CONFIG_RTC_DRV_WM8350)	+= rtc-wm8350.o
+ obj-$(CONFIG_RTC_DRV_X1205)	+= rtc-x1205.o
+ obj-$(CONFIG_RTC_DRV_XGENE)	+= rtc-xgene.o
++obj-$(CONFIG_RTC_DRV_ELBA_CPLD) += rtc-elbacpld.o
+ obj-$(CONFIG_RTC_DRV_ZYNQMP)	+= rtc-zynqmp.o
+diff --git a/drivers/rtc/rtc-elbacpld.c b/drivers/rtc/rtc-elbacpld.c
+new file mode 100644
+index 0000000..5005f97
+--- /dev/null
++++ b/drivers/rtc/rtc-elbacpld.c
+@@ -0,0 +1,159 @@
++/*
++ * drivers/rtc/rtc-elbacpld.c
++ *
++ * Driver for AMD ELBA CPLD real-time clock.
++ *
++ * Copyright (C) 2023 AMD Corporation
++ * Author: Mushtaq Khan<Mushtaq.Khan@amd.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * Driver reads Colck and Date registers from ELBA CPLD over SPI.
++ * Uses SPI regmap created by driver mfd/pensando-elbasr.c.
++ *
++ */
++#include <linux/module.h>
++#include <linux/i2c.h>
++#include <linux/slab.h>
++#include <linux/rtc.h>
++#include <linux/init.h>
++#include <linux/err.h>
++#include <linux/errno.h>
++#include <linux/bcd.h>
++#include <linux/of.h>
++#include <linux/of_device.h>
++#include <linux/regmap.h>
++#include <linux/mfd/pensando-elbasr.h>
++
++#define RTC_BASE_OFFSET  0xA2
++/*
++ * Date/Time registers
++ */
++#define DT_100THS       0x00
++#define DT_YEARS        0x01
++#define DT_MONTHS       0x02
++#define DT_DATE         0x03
++#define DT_HOURS        0x04
++#define DT_MINUTES      0x05
++#define DT_SECS         0x06
++#define DT_SUBSECS      0x07
++
++struct elba_rtc {
++    struct rtc_device   *rtc;
++    struct regmap       *regmap;
++};
++
++static ssize_t date_reg_show (struct device *dev,
++                        struct device_attribute *attr, char *buf)
++{
++    struct elba_rtc *rtc = dev_get_drvdata(dev);
++    unsigned int reg_val, count = 0, reg_offset;
++    int i,ret;
++    
++    for(i = 0; i < (DT_SUBSECS+1); i++) {
++        reg_offset = 0xA2+i;
++        ret = regmap_read(rtc->regmap, reg_offset, &reg_val);
++        if (ret) {
++             return sprintf(buf, "error %d reading offset %02X\n", ret, reg_offset);
++        }
++        count += sprintf(buf+count, "offset:%02X BCD:%02X\n", reg_offset, reg_val);
++    }
++
++    return count;
++}
++
++static DEVICE_ATTR(date_reg,S_IRUGO,date_reg_show,NULL);
++
++static struct attribute *date_attr[] = {
++    &dev_attr_date_reg.attr,
++    NULL,
++}; 
++
++static struct attribute_group date_group = {
++    .attrs = date_attr,
++};
++
++static int elba_rtc_read_time(struct device *dev, struct rtc_time *tm)
++{
++    struct elba_rtc *rtc = dev_get_drvdata(dev);
++    unsigned char buf[DT_SUBSECS + 1];
++    int ret, len = sizeof(buf);
++
++    /* read the RTC date and time registers all at once */
++    ret = regmap_bulk_read(rtc->regmap, (RTC_BASE_OFFSET + DT_100THS), buf, len);
++    if (ret) {
++        dev_err(dev, "%s: error %d\n", __func__, ret);
++        return ret;
++    }
++
++    tm->tm_year = bcd2bin(buf[DT_YEARS]);
++    /* adjust for 1900 base of rtc_time */
++    tm->tm_year += 100;
++
++    tm->tm_wday = 0;
++    tm->tm_sec = bcd2bin(buf[DT_SECS]);
++    tm->tm_min = bcd2bin(buf[DT_MINUTES]);
++    tm->tm_hour = bcd2bin(buf[DT_HOURS]);
++    tm->tm_mday = bcd2bin(buf[DT_DATE]);
++    tm->tm_mon = bcd2bin(buf[DT_MONTHS]) - 1;
++
++    return 0;
++}
++
++static const struct rtc_class_ops rtc_ops = {
++    .read_time  = elba_rtc_read_time,
++    .set_time   = NULL,
++};
++
++static int elbasr_rtc_probe(struct platform_device *pdev)
++{
++    struct elba_rtc *e_rtc;
++    struct elbasr_data *elbasr = dev_get_drvdata(pdev->dev.parent);
++    int    ret;
++
++    e_rtc = devm_kzalloc(&pdev->dev, sizeof(struct elba_rtc),
++                GFP_KERNEL);
++    if (!e_rtc)
++        return -ENOMEM;
++
++    e_rtc->regmap = elbasr->elbasr_regs;
++    e_rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
++    if (IS_ERR(e_rtc->rtc))
++        return PTR_ERR(e_rtc->rtc);
++
++    e_rtc->rtc->ops = &rtc_ops;
++
++    platform_set_drvdata(pdev, e_rtc);
++
++    ret = rtc_register_device(e_rtc->rtc);
++
++    ret = sysfs_create_group(&pdev->dev.kobj, &date_group);
++    if (ret) {
++        sysfs_remove_group(&pdev->dev.kobj, &date_group);
++        dev_err(&pdev->dev, "Failed to create attr group\n");
++    }
++
++    return ret;
++}
++
++static const struct of_device_id elba_rtc_dt_match[] = {
++    { .compatible = "amd,pensando-elbasr-rtc", },
++    { /* sentinel */ },
++};
++
++static struct platform_driver elbasr_rtc_driver = {
++    .driver = {
++            .name = "pensando_elbasr_rtc",
++            .of_match_table = elba_rtc_dt_match,
++    },
++    .probe  = elbasr_rtc_probe,
++};
++
++module_platform_driver(elbasr_rtc_driver);
++
++MODULE_AUTHOR("Mushtaq Khan <Mushtaq.Khan@amd.com>");
++MODULE_DESCRIPTION("elba cpld spi RTC driver");
++MODULE_LICENSE("GPL");
++MODULE_VERSION("1.0");
+-- 
+1.8.3.1
+
