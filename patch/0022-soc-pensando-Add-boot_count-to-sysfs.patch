@@ -1,7 +1,7 @@
 From 114519cad4149ded87d2eb664823a9b65f9a1666 Mon Sep 17 00:00:00 2001
 From: Hiren Mehta <hiren@pensando.io>
 Date: Fri, 13 Jan 2023 16:45:09 -0800
-Subject: [PATCH 22/29] soc:pensando: Add boot_count to sysfs
+Subject: [PATCH 22/30] soc:pensando: Add boot_count to sysfs
 
 Augment the kdump timestamp with
 the boot_count number. Also, adjust the kdump timestamp.

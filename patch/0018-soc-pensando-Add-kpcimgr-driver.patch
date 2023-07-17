@@ -1,7 +1,7 @@
 From ed42959f4c1eb561b10a79872799a1699537ee7c Mon Sep 17 00:00:00 2001
 From: Hiren Mehta <hiren@pensando.io>
 Date: Tue, 17 Jan 2023 17:25:34 -0800
-Subject: [PATCH 18/29] soc: pensando: Add kpcimgr driver
+Subject: [PATCH 18/30] soc: pensando: Add kpcimgr driver
 
 kpcimgr driver enables the relocation of the module code to handle
 Elba indirect PCIe transactions.
