@@ -1,4 +1,4 @@
-From 8c096bea60ba9630abf9b15f2073ec6a8b7b3043 Mon Sep 17 00:00:00 2001
+From cd8863ef744e5eb6ac62a2d1f441607cfb23c021 Mon Sep 17 00:00:00 2001
 From: Ashwin H <Ashwin.H@amd.com>
 Date: Mon, 17 Jul 2023 17:33:42 +0000
 Subject: [PATCH 30/30] quirks for the Pensando qspi controller
